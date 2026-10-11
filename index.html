@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Air Studio | Apple-Grade Whiteboard Air Painting</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><text y=%22.9em%22 font-size=%2290%22>🎨</text></svg>">
+</head>
+<body>
+
+  <!-- ========================================================================
+       1. CANVAS SYSTEM: WHITEBOARD & TRACING LAYERS (NO FULLSCREEN CAMERA)
+       ======================================================================== -->
+  <div id="canvas-container" class="canvas-container theme-whiteboard">
+    <!-- User Uploaded Photo / Tracing Template Layer -->
+    <canvas id="image-canvas"></canvas>
+
+    <!-- Permanent Air Drawing Canvas -->
+    <canvas id="drawing-canvas"></canvas>
+
+    <!-- Two-Hand & Dynamic Vector Preview Layer -->
+    <canvas id="preview-canvas"></canvas>
+
+    <!-- Particle FX Layer -->
+    <canvas id="fx-canvas"></canvas>
+
+    <!-- Hidden Video for WebRTC Camera Tracking -->
+    <video id="camera-video" autoplay playsinline muted></video>
+  </div>
+
+  <!-- Hidden Photo Upload File Input -->
+  <input type="file" id="image-upload-input" accept="image/*" style="display:none;">
+
+  <!-- ========================================================================
+       2. VIRTUAL GESTURE POINTER & 2-FINGER ERASER
+       ======================================================================== -->
+  <div id="gesture-pointer">
+    <div class="cursor-center"></div>
+    <div class="cursor-ring"></div>
+    <svg class="dwell-svg" viewBox="0 0 44 44">
+      <circle class="dwell-circle-bg" cx="22" cy="22" r="19"></circle>
+      <circle id="dwell-progress-circle" class="dwell-circle-progress" cx="22" cy="22" r="19"></circle>
+    </svg>
+  </div>
+
+  <!-- ========================================================================
+       3. TOP ISLAND MENU (APPLE-STYLE UNCLUTTERED TOOLBAR)
+       ======================================================================== -->
+  <header class="apple-toolbar">
+    <!-- Brand Title -->
+    <div class="toolbar-brand">
+      <span class="brand-icon">🎨</span>
+      <span class="brand-name">Air Studio</span>
+    </div>
+
+    <!-- 1-Finger Drawing Brush Tools -->
+    <div class="tool-group">
+      <button class="apple-btn brush-tool-btn active dwell-target" data-brush="pencil" title="Natural Pencil (1 Finger)">
+        <span class="btn-icon">✏️</span> Pen
+      </button>
+      <button class="apple-btn brush-tool-btn dwell-target" data-brush="highlighter" title="Highlighter Marker">
+        <span class="btn-icon">🖍️</span> Marker
+      </button>
+      <button class="apple-btn brush-tool-btn dwell-target" data-brush="neon" title="Neon Glow Bloom">
+        <span class="btn-icon">✨</span> Neon
+      </button>
+      <button class="apple-btn brush-tool-btn dwell-target" data-brush="calligraphy" title="Calligraphy Ribbon">
+        <span class="btn-icon">🖋️</span> Ribbon
+      </button>
+      <button class="apple-btn brush-tool-btn dwell-target" data-brush="sparkle" title="Stardust Particles">
+        <span class="btn-icon">🌟</span> Sparkle
+      </button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Color Palette Row -->
+    <div class="tool-group swatch-row">
+      <!-- Apple Midnight -->
+      <button class="color-swatch-btn dwell-target" data-color="#1d1d1f" style="background:#1d1d1f;" title="Midnight Black"></button>
+      <!-- Apple Azure Blue (Default) -->
+      <button class="color-swatch-btn active dwell-target" data-color="#0071e3" style="background:#0071e3;" title="Apple Blue"></button>
+      <!-- Coral Red -->
+      <button class="color-swatch-btn dwell-target" data-color="#ff3b30" style="background:#ff3b30;" title="Crimson Red"></button>
+      <!-- Mint Emerald -->
+      <button class="color-swatch-btn dwell-target" data-color="#34c759" style="background:#34c759;" title="Mint Green"></button>
+      <!-- Sunset Orange -->
+      <button class="color-swatch-btn dwell-target" data-color="#ff9500" style="background:#ff9500;" title="Sunset Orange"></button>
+      <!-- Royal Violet -->
+      <button class="color-swatch-btn dwell-target" data-color="#af52de" style="background:#af52de;" title="Royal Violet"></button>
+      <!-- Solar Gold -->
+      <button class="color-swatch-btn dwell-target" data-color="#ffcc00" style="background:#ffcc00;" title="Solar Gold"></button>
+      <!-- Starlight White -->
+      <button class="color-swatch-btn dwell-target" data-color="#ffffff" style="background:#ffffff; border-color:#ccc;" title="Starlight White"></button>
+      <!-- Dynamic Rainbow -->
+      <button class="color-swatch-btn rainbow-mode dwell-target" data-color="rainbow" title="Prism Rainbow"></button>
+      <!-- Custom Color Picker -->
+      <div class="custom-color-picker-wrap" title="Custom Color Picker">
+        <input type="color" id="custom-color-picker" value="#0071e3">
+      </div>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Stroke Thickness -->
+    <div class="tool-group">
+      <button class="apple-btn size-pill dwell-target" data-size="3" title="Fine (3px)">
+        <div class="size-dot-preview" style="width: 4px; height: 4px;"></div>
+      </button>
+      <button class="apple-btn size-pill active dwell-target" data-size="8" title="Normal (8px)">
+        <div class="size-dot-preview" style="width: 8px; height: 8px;"></div>
+      </button>
+      <button class="apple-btn size-pill dwell-target" data-size="16" title="Thick (16px)">
+        <div class="size-dot-preview" style="width: 14px; height: 14px;"></div>
+      </button>
+      <button class="apple-btn size-pill dwell-target" data-size="28" title="Bold Marker (28px)">
+        <div class="size-dot-preview" style="width: 20px; height: 20px;"></div>
+      </button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Canvas Background Themes -->
+    <div class="tool-group">
+      <button class="apple-btn bg-theme-btn active dwell-target" data-theme="whiteboard" title="Whiteboard">
+        📄 Board
+      </button>
+      <button class="apple-btn bg-theme-btn dwell-target" data-theme="grid" title="Graph Paper">
+        📏 Grid
+      </button>
+      <button class="apple-btn bg-theme-btn dwell-target" data-theme="dots" title="Dot Grid">
+        📐 Dots
+      </button>
+      <button class="apple-btn bg-theme-btn dwell-target" data-theme="dark" title="Dark Slate">
+        🌌 Dark
+      </button>
+      <button class="apple-btn bg-theme-btn dwell-target" data-theme="parchment" title="Parchment">
+        📜 Paper
+      </button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Upload Image -->
+    <div class="tool-group">
+      <button class="apple-btn dwell-target" id="btn-upload-image" title="Upload Photo or Tracing Template">
+        <span class="btn-icon">🖼️</span> Upload Photo
+      </button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Canvas Actions -->
+    <div class="tool-group">
+      <button class="apple-btn icon-only dwell-target" id="btn-undo" title="Undo (Ctrl+Z)">
+        <span class="btn-icon">↩️</span>
+      </button>
+      <button class="apple-btn icon-only dwell-target" id="btn-redo" title="Redo (Ctrl+Shift+Z)">
+        <span class="btn-icon">↪️</span>
+      </button>
+      <button class="apple-btn icon-only danger dwell-target" id="btn-clear" title="Clear Canvas (or Close Fist ✊)">
+        <span class="btn-icon">🗑️</span>
+      </button>
+      <button class="apple-btn primary dwell-target" id="btn-export" title="Save Artwork (PNG)">
+        <span class="btn-icon">💾</span> Save
+      </button>
+      <button class="apple-btn icon-only active dwell-target" id="btn-mute" title="Sound Effects">
+        <span class="btn-icon">🔊</span>
+      </button>
+      <button class="apple-btn icon-only dwell-target" id="btn-help" title="Gestures Guide & Tutorial">
+        <span class="btn-icon">❓</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       4. TWO-HAND DUAL SHAPE INDICATOR (ACTIVE WHEN 2 HANDS DETECTED)
+       ======================================================================== -->
+  <div id="dual-hand-indicator">
+    <span>👐 <strong>2 HANDS DETECTED:</strong> Move both index pointers to draw shape • Bring pointers together or hold steady to place</span>
+  </div>
+
+  <!-- ========================================================================
+       5. PHOTO / TRACING DOCK (APPEARS WHEN AN IMAGE IS LOADED)
+       ======================================================================== -->
+  <div id="image-control-dock">
+    <div class="slider-group">
+      <span>Tracing Opacity:</span>
+      <input type="range" id="image-opacity-slider" min="0.1" max="1.0" step="0.05" value="0.85">
+    </div>
+    <div class="templates-popover">
+      <span style="font-size: 11px; font-weight: 700; color: #86868b;">Presets:</span>
+      <button class="template-preset-btn" data-template="butterfly">🦋 Coloring Butterfly</button>
+      <button class="template-preset-btn" data-template="mandala">🎨 Mandala</button>
+      <button class="template-preset-btn" data-template="car">🏎️ Car Sketch</button>
+    </div>
+    <button class="apple-btn danger icon-only" id="btn-remove-image" title="Remove Photo">✕</button>
+  </div>
+
+  <!-- ========================================================================
+       6. CORNER WEBCAM FACETIME-STYLE PIP CARD (NOT FULLSCREEN)
+       ======================================================================== -->
+  <div id="webcam-pip-card">
+    <div class="pip-header">
+      <div class="pip-title-badge">
+        <div class="pip-live-dot"></div>
+        <span>AI VISION</span>
+      </div>
+      <button class="pip-toggle-btn" id="btn-toggle-pip" title="Minimize / Expand PiP">⌵</button>
+    </div>
+
+    <div class="pip-canvas-box">
+      <canvas id="hud-canvas" width="200" height="125"></canvas>
+    </div>
+
+    <div class="pip-status-row">
+      <span>Neural Hand Vision</span>
+      <span id="pip-status-badge">ONLINE</span>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       7. CLOSED FIST HOLD-TO-WIPE OVERLAY
+       ======================================================================== -->
+  <div id="fist-wipe-overlay">
+    <div class="wipe-icon">✊</div>
+    <div class="wipe-title">HOLD FIST TO WIPE CANVAS</div>
+    <div class="wipe-time" id="wipe-time-val">0.8s</div>
+    <p style="font-size: 11px; color: #86868b;">Open hand to cancel</p>
+  </div>
+
+  <!-- Toast Notification Pill -->
+  <div id="toast-notification">✨ Air Studio Ready!</div>
+
+  <!-- ========================================================================
+       8. ONBOARDING / GESTURES GUIDE MODAL (AUTO-POPS UP ON FIRST LAUNCH)
+       ======================================================================== -->
+  <div class="guide-modal-overlay" id="guide-modal">
+    <div class="guide-modal-card">
+      <div class="modal-header">
+        <div>
+          <h2>🖐️ Air Studio Gestures Guide</h2>
+          <p>Zero touch required — paint, erase, and generate shapes with your hands!</p>
+        </div>
+        <button class="apple-btn icon-only" id="btn-close-modal">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="guide-cards-grid">
+          <!-- Gesture 1: 1 Finger -->
+          <div class="guide-card">
+            <span class="card-icon">☝️</span>
+            <div class="card-title">1 Finger (Index)</div>
+            <div class="card-badge">PURE LINE DRAWING</div>
+            <p class="card-desc">Raise only your index finger. Paint fluid, organic lines with your active pen, marker, or neon brush — strictly lines, zero shape popups!</p>
+          </div>
+
+          <!-- Gesture 2: 2 Fingers -->
+          <div class="guide-card" style="border-color: rgba(255, 59, 48, 0.35); background: rgba(255, 59, 48, 0.05);">
+            <span class="card-icon">✌️</span>
+            <div class="card-title">2 Fingers (Peace)</div>
+            <div class="card-badge" style="background: rgba(255, 59, 48, 0.15); color: #ff3b30;">VIRTUAL ERASER</div>
+            <p class="card-desc">Raise your Index + Middle fingers together. Smooth, continuous virtual eraser that cleanly scrubs away strokes with zero gaps!</p>
+          </div>
+
+          <!-- Gesture 3: 2 Hands -->
+          <div class="guide-card" style="border-color: rgba(0, 113, 227, 0.35); background: rgba(0, 113, 227, 0.05);">
+            <span class="card-icon">👐</span>
+            <div class="card-title">Two Hands (Dual Index)</div>
+            <div class="card-badge" style="background: rgba(0, 113, 227, 0.15); color: #0071e3;">SCULPT SHAPES</div>
+            <p class="card-desc">Show both hands. Both index pointers track live with dotted lines. Bring pointers together to close, or hold steady to place the shape!</p>
+          </div>
+
+          <!-- Gesture 4: Closed Fist -->
+          <div class="guide-card">
+            <span class="card-icon">✊</span>
+            <div class="card-title">Closed Fist</div>
+            <div class="card-badge" style="background: rgba(100, 116, 139, 0.15); color: #475569;">WIPE CANVAS</div>
+            <p class="card-desc">Close all fingers into a tight fist and hold for 0.8s to instantly wipe all ink from the whiteboard!</p>
+          </div>
+
+          <!-- Feature 5: Image Tracing -->
+          <div class="guide-card">
+            <span class="card-icon">🖼️</span>
+            <div class="card-title">Photo Tracing</div>
+            <div class="card-badge" style="background: rgba(52, 199, 89, 0.15); color: #34c759;">CREATIVE BACKDROP</div>
+            <p class="card-desc">Upload any photo or diagram (or drag-and-drop) to use it as a reference template and air-paint directly over it!</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="apple-primary-btn" id="btn-modal-got-it">✨ Start Air Painting</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       SCRIPTS & COMPUTER VISION
+       ======================================================================== -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <script src="js/audio.js"></script>
+  <script src="js/gestures.js"></script>
+  <script src="js/brushes.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
